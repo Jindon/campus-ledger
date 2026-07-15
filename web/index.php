@@ -18,6 +18,7 @@ $router = new Router();
 # START Register Routes
 $router->get('/imports', fn () => (new ImportController())->index());
 $router->post('/imports', fn () => (new ImportController())->store());
+$router->get('/imports/{id}', fn (array $params) => (new ImportController())->show((int) $params['id']));
 
 # END Register Routes
 
