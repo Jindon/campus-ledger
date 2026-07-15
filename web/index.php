@@ -5,9 +5,15 @@ declare(strict_types=1);
 use App\Controllers\Web\DashboardController;
 use App\Controllers\Web\ImportController;
 use App\Controllers\Web\TransactionController;
+use App\Controllers\Api\ImportController as ApiImportController;
+use App\Controllers\Api\TransactionController as ApiTransactionController;
+use App\Controllers\Api\ReportController as ApiReportController;
 use App\Controllers\Web\ReportController;
+use App\Core\Logger;
 use App\Core\Router;
 use App\Exceptions\HttpException;
+use App\Exceptions\NotFoundException;
+use App\Exceptions\ValidationException;
 
 require __DIR__ . '/../app/bootstrap.php';
 
@@ -15,10 +21,12 @@ session_start();
 
 $uri = $_SERVER['REQUEST_URI'] ?? '/';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$isApi = str_starts_with(parse_url($uri, PHP_URL_PATH) ?? '', '/api/');
 
 $router = new Router();
 
 # START Register Routes
+# Web routes
 $router->get('/', fn () => (new DashboardController())->index());
 
 $router->get('/imports', fn () => (new ImportController())->index());
@@ -28,31 +36,60 @@ $router->get('/imports/{id}', fn (array $params) => (new ImportController())->sh
 $router->get('/transactions', fn () => (new TransactionController())->index($_GET));
 $router->get('/reports', fn () => (new ReportController())->index());
 
+# API routes
+$router->get('/api/imports', fn () => (new ApiImportController())->index($_GET));
+$router->get('/api/imports/{id}', fn (array $params) => (new ApiImportController())->show((int) $params['id'], $_GET));
+$router->get('/api/transactions', fn (array $params) => (new ApiTransactionController())->index($_GET));
+$router->get('/api/reports/daily', fn (array $params) => (new ApiReportController())->daily($_GET));
+
 # END Register Routes
 
 try {
     $result = $router->dispatch($method, $uri);
 
-    if (1 === 2) { // TODO: $isApi then return json response
+    if ($isApi) {
+        header('Content-Type: application/json');
         echo json_encode($result, JSON_THROW_ON_ERROR);
+    } else {
+        echo $result;
     }
-
-    echo $result;
 } catch (HttpException $e) {
+    if (!($e instanceof NotFoundException)) {
+        Logger::error($e->getMessage(), ['exception' => get_class($e)]);
+    }
 
     http_response_code($e->statusCode);
 
-    // todo: send json response or show error page
+    if ($isApi) {
+        header('Content-Type: application/json');
+        $payload = ['error' => $e->getMessage()];
+        if ($e instanceof ValidationException) {
+            $payload['errors'] = $e->errors;
+        }
+        echo json_encode($payload, JSON_THROW_ON_ERROR);
+    } else {
+        echo view('errors/error', ['statusCode' => $e->statusCode, 'message' => $e->getMessage()]);
+    }
 
     echo view('errors/error', ['statusCode' => $e->statusCode, 'message' => $e->getMessage()]);
 } catch (Throwable $e) {
     http_response_code(500);
+    $debug = config('app.debug');
 
-    // todo: send json response or show error page
-
-    echo view('errors/error', [
-        'statusCode' => 500,
-        'message' => $e->getMessage(),
-        'trace' => $e,
-    ]);
+    if ($isApi) {
+        header('Content-Type: application/json');
+        $payload = ['error' => 'Internal server error'];
+        if ($debug) {
+            $payload['exception'] = get_class($e);
+            $payload['message'] = $e->getMessage();
+            $payload['trace'] = explode("\n", $e->getTraceAsString());
+        }
+        echo json_encode($payload, JSON_THROW_ON_ERROR);
+    } else {
+        echo view('errors/error', [
+            'statusCode' => 500,
+            'message' => $e->getMessage(),
+            'trace' => $e,
+        ]);
+    }
 }

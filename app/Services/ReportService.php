@@ -20,7 +20,7 @@ final class ReportService
     public static function resolveDate(?string $requested): string
     {
         $today = date('Y-m-d');
-        if ($requested === null || $requested === '') {
+        if (empty($requested)) {
             return $today;
         }
 
