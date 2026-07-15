@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Controllers\Web\DashboardController;
 use App\Controllers\Web\ImportController;
 use App\Controllers\Web\TransactionController;
 use App\Controllers\Web\ReportController;
@@ -18,6 +19,8 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $router = new Router();
 
 # START Register Routes
+$router->get('/', fn () => (new DashboardController())->index());
+
 $router->get('/imports', fn () => (new ImportController())->index());
 $router->post('/imports', fn () => (new ImportController())->store());
 $router->get('/imports/{id}', fn (array $params) => (new ImportController())->show((int) $params['id']));
