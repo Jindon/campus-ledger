@@ -1,2 +1,5 @@
 .idea
+.env
 vendor/
+node_modules/
+storage/logs/*.log

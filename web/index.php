@@ -15,7 +15,11 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 $router = new Router();
 
+# START Register Routes
 $router->get('/imports', fn () => (new ImportController())->index());
+$router->post('/imports', fn () => (new ImportController())->store());
+
+# END Register Routes
 
 try {
     $result = $router->dispatch($method, $uri);
@@ -30,9 +34,16 @@ try {
     http_response_code($e->statusCode);
 
     // todo: send json response or show error page
+
+    echo view('errors/error', ['statusCode' => $e->statusCode, 'message' => $e->getMessage()]);
 } catch (Throwable $e) {
     http_response_code(500);
 
-    throw $e;
     // todo: send json response or show error page
+
+    echo view('errors/error', [
+        'statusCode' => 500,
+        'message' => $e->getMessage(),
+        'trace' => $e,
+    ]);
 }

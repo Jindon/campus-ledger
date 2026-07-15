@@ -1,0 +1,50 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\Core\Database;
+use App\Core\Migrator;
+use App\Services\ImportService;
+
+require __DIR__ . '/../app/bootstrap.php';
+
+$command = $argv[1] ?? null;
+
+try {
+    switch ($command) {
+        case 'migrate':
+            Database::createDatabaseIfMissing();
+            $applied = (new Migrator(Database::connection()))->run();
+            if ($applied === []) {
+                echo "Nothing to migrate.\n";
+                break;
+            }
+            foreach ($applied as $file) {
+                echo "Migrated: {$file}\n";
+            }
+            break;
+
+        case 'import':
+            $path = $argv[2] ?? null;
+            if ($path === null || !is_file($path)) {
+                fwrite(STDERR, "Usage: php bin/console import <path-to-csv>\n");
+                exit(1);
+            }
+
+            $summary = (new ImportService(Database::connection()))->import($path);
+            echo "Imported:   {$summary->importedCount}\n";
+            echo "Rejected:   {$summary->rejectedCount}\n";
+            echo "Duplicates: {$summary->duplicateCount}\n";
+            echo "Time:       {$summary->processingTimeMs}ms\n";
+            echo "Batch ID:   {$summary->importBatchId}\n";
+            break;
+
+        default:
+            fwrite(STDERR, "Usage: php bin/console <migrate|import>\n");
+            exit(1);
+    }
+} catch (\Throwable $e) {
+    fwrite(STDERR, get_class($e) . ': ' . $e->getMessage() . "\n");
+    exit(1);
+}
