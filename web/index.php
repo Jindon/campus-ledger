@@ -76,8 +76,6 @@ try {
     } else {
         echo view('errors/error', ['statusCode' => $e->statusCode, 'message' => $e->getMessage()]);
     }
-
-    echo view('errors/error', ['statusCode' => $e->statusCode, 'message' => $e->getMessage()]);
 } catch (Throwable $e) {
     http_response_code(500);
     $debug = config('app.debug');
