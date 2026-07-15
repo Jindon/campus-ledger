@@ -118,4 +118,49 @@ final class TransactionRepository
 
         return $stmt;
     }
+
+    public function dailySummary(string $date): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT currency, COUNT(*) AS transaction_count, SUM(amount) AS total_amount
+             FROM transactions
+             WHERE DATE(occurred_at) = :date
+             GROUP BY currency
+             ORDER BY currency ASC'
+        );
+        $stmt->execute(['date' => $date]);
+
+        return $stmt->fetchAll();
+    }
+
+    public function merchantTotals(?string $date = null): array
+    {
+        $where = 'WHERE merchant IS NOT NULL';
+        $params = [];
+        if ($date !== null) {
+            $where .= ' AND DATE(occurred_at) = :date';
+            $params['date'] = $date;
+        }
+
+        $stmt = $this->pdo->prepare(
+            "SELECT merchant, currency, COUNT(*) AS transaction_count, SUM(amount) AS total_amount
+             FROM transactions
+             {$where}
+             GROUP BY merchant, currency
+             ORDER BY merchant ASC, total_amount DESC"
+        );
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
+    public function currencyTotals(): array
+    {
+        return $this->pdo->query(
+            'SELECT currency, COUNT(*) AS transaction_count, SUM(amount) AS total_amount
+             FROM transactions
+             GROUP BY currency
+             ORDER BY total_amount DESC'
+        )->fetchAll();
+    }
 }
