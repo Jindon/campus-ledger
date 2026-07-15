@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-use app\Controllers\Web\ImportController;
+use App\Controllers\Web\ImportController;
+use App\Controllers\Web\TransactionController;
 use App\Core\Router;
 use App\Exceptions\HttpException;
 
@@ -19,6 +20,8 @@ $router = new Router();
 $router->get('/imports', fn () => (new ImportController())->index());
 $router->post('/imports', fn () => (new ImportController())->store());
 $router->get('/imports/{id}', fn (array $params) => (new ImportController())->show((int) $params['id']));
+
+$router->get('/transactions', fn () => (new TransactionController())->index($_GET));
 
 # END Register Routes
 

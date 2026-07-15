@@ -7,6 +7,7 @@ namespace App\Repositories;
 use App\DTO\PageResult;
 use App\Models\Transaction;
 use PDO;
+use PDOStatement;
 
 final class TransactionRepository
 {
@@ -38,5 +39,83 @@ final class TransactionRepository
         $stmt->execute(array_values($transactionIds));
 
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    public function search(array $filters, int $page = 1, int $perPage = 25): PageResult
+    {
+        [$where, $params] = $this->buildWhere($filters);
+        $page = max(1, $page);
+        $offset = ($page - 1) * $perPage;
+
+        $total = (int) $this->prepareAndRun(
+            "SELECT COUNT(*) FROM transactions {$where}",
+            $params
+        )->fetchColumn();
+
+        $stmt = $this->prepareAndRun(
+            "SELECT * FROM transactions {$where} ORDER BY occurred_at DESC, id DESC LIMIT {$perPage} OFFSET {$offset}",
+            $params
+        );
+
+        $items = array_map(fn (array $row) => Transaction::fromRow($row), $stmt->fetchAll());
+
+        return new PageResult($items, $total, $page, $perPage);
+    }
+
+    private function buildWhere(array $filters): array
+    {
+        $clauses = [];
+        $params = [];
+
+        if (!empty($filters['date_from'])) {
+            $clauses[] = 'occurred_at >= :date_from';
+            $params['date_from'] = $filters['date_from'];
+        }
+        if (!empty($filters['date_to'])) {
+            $clauses[] = 'occurred_at <= :date_to';
+            $params['date_to'] = $filters['date_to'];
+        }
+        if (!empty($filters['merchant'])) {
+            $clauses[] = 'merchant LIKE :merchant';
+            $params['merchant'] = '%' . $filters['merchant'] . '%';
+        }
+        if (!empty($filters['status'])) {
+            $clauses[] = 'status = :status';
+            $params['status'] = $filters['status'];
+        }
+        if (!empty($filters['account'])) {
+            $clauses[] = 'account = :account';
+            $params['account'] = $filters['account'];
+        }
+        if (!empty($filters['card_number'])) {
+            $clauses[] = 'card_number = :card_number';
+            $params['card_number'] = $filters['card_number'];
+        }
+        if (!empty($filters['amount_min'])) {
+            $clauses[] = 'amount >= :amount_min';
+            $params['amount_min'] = $filters['amount_min'];
+        }
+        if (!empty($filters['amount_max'])) {
+            $clauses[] = 'amount <= :amount_max';
+            $params['amount_max'] = $filters['amount_max'];
+        }
+        if (!empty($filters['q'])) {
+            // Native (non-emulated) prepared statements require a distinct placeholder
+            // per occurrence — reusing :q twice throws "Invalid parameter number".
+            $clauses[] = '(transaction_id LIKE :q1 OR merchant LIKE :q2)';
+            $params['q1'] = $params['q2'] = '%' . $filters['q'] . '%';
+        }
+
+        $where = empty($clauses) ? '' : 'WHERE ' . implode(' AND ', $clauses);
+
+        return [$where, $params];
+    }
+
+    private function prepareAndRun(string $sql, array $params): PDOStatement
+    {
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt;
     }
 }

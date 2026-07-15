@@ -1,6 +1,7 @@
 <?php
 
-namespace app\Controllers\Web;
+namespace App\Controllers\Web;
+
 use App\Core\Database;
 use App\Exceptions\NotFoundException;
 use App\Repositories\ImportBatchRepository;
