@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\DTO\PageResult;
+use App\Models\RejectedTransaction;
 use PDO;
 
 final class RejectedTransactionRepository
@@ -27,5 +29,24 @@ final class RejectedTransactionRepository
         ]);
 
         return (int) $this->pdo->lastInsertId();
+    }
+
+    public function findByImportBatch(int $importBatchId, int $page = 1, int $perPage = 25): PageResult
+    {
+        $page = max(1, $page);
+        $offset = ($page - 1) * $perPage;
+
+        $countStmt = $this->pdo->prepare('SELECT COUNT(*) FROM rejected_transactions WHERE import_batch_id = :id');
+        $countStmt->execute(['id' => $importBatchId]);
+        $total = (int) $countStmt->fetchColumn();
+
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM rejected_transactions WHERE import_batch_id = :id ORDER BY row_no ASC LIMIT {$perPage} OFFSET {$offset}"
+        );
+        $stmt->execute(['id' => $importBatchId]);
+
+        $items = array_map(fn (array $row) => RejectedTransaction::fromRow($row), $stmt->fetchAll());
+
+        return new PageResult($items, $total, $page, $perPage);
     }
 }

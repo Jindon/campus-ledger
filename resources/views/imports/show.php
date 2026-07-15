@@ -23,3 +23,54 @@ use App\Models\ImportBatch;
         <div><dt class="text-slate-500">Imported At</dt><dd class="font-medium"><?= e($batch->createdAt) ?></dd></div>
     </dl>
 </div>
+
+<div class="bg-white rounded-lg border border-slate-200 overflow-x-auto">
+    <h2 class="text-lg font-medium p-5 pb-0">Rejected Transactions</h2>
+    <table class="w-full text-sm mt-3">
+        <thead class="bg-slate-50 text-slate-500 text-left">
+        <tr>
+            <th class="px-4 py-2">Row #</th>
+            <th class="px-4 py-2">Transaction ID</th>
+            <th class="px-4 py-2">Validation Errors</th>
+            <th class="px-4 py-2">Raw Data</th>
+        </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+        <?php foreach ($rejected->items as $row): ?>
+            <tr class="align-top">
+                <td class="px-4 py-2"><?= e((string) $row->rowNo) ?></td>
+                <td class="px-4 py-2"><?= e($row->transactionId ?? '-') ?></td>
+                <td class="px-4 py-2 text-red-600"><?= e(implode('; ', $row->errors)) ?></td>
+                <td class="px-4 py-2">
+                    <button type="button" class="raw-data-toggle text-blue-600 hover:underline" data-target="raw-data-<?= e((string) $row->id) ?>">
+                        View
+                    </button>
+                </td>
+            </tr>
+            <tr id="raw-data-<?= e((string) $row->id) ?>" class="hidden">
+                <td colspan="4" class="px-4 py-3 bg-slate-50">
+                    <pre class="text-xs overflow-x-auto"><?= e(json_encode($row->rawData, JSON_PRETTY_PRINT)) ?></pre>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+        <?php if ($rejected->items === []): ?>
+            <tr><td colspan="4" class="px-4 py-6 text-center text-slate-500">No rejected rows.</td></tr>
+        <?php endif; ?>
+        </tbody>
+    </table>
+</div>
+
+<div class="px-4 pb-4">
+    <?= view('partials/pagination', ['page' => $rejected->page, 'lastPage' => $rejected->lastPage(), 'baseUrl' => '/imports/' . $batch->id]) ?>
+</div>
+
+// hide and show raw data for rejected transaction row
+<script>
+    document.querySelectorAll('.raw-data-toggle').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const row = document.getElementById(button.dataset.target);
+            const isHidden = row.classList.toggle('hidden');
+            button.textContent = isHidden ? 'View' : 'Close';
+        });
+    });
+</script>

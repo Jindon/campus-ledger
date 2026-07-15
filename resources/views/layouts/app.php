@@ -37,5 +37,15 @@ $navItems = [
     <main class="max-w-6xl mx-auto px-4 py-8">
         <?= $content ?>
     </main>
+
+    <script>
+        document.addEventListener('submit', function (e) {
+            const form = e.target.closest('form[data-loading-text]');
+            const button = form ? form.querySelector('button[type="submit"]') : null;
+            if (!button) return;
+            button.disabled = true;
+            button.textContent = form.dataset.loadingText;
+        });
+    </script>
 </body>
 </html>

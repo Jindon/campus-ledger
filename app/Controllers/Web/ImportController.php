@@ -4,6 +4,7 @@ namespace app\Controllers\Web;
 use App\Core\Database;
 use App\Exceptions\NotFoundException;
 use App\Repositories\ImportBatchRepository;
+use App\Repositories\RejectedTransactionRepository;
 use App\Services\ImportService;
 use App\Validators\UploadValidator;
 use Throwable;
@@ -12,7 +13,10 @@ final class ImportController
 {
     public function index(): string
     {
-        $content = view('imports/index');
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $batches = (new ImportBatchRepository(Database::connection()))->paginate($page);
+
+        $content = view('imports/index', ['batches' => $batches]);
 
         return view('layouts/app', [
             'title' => 'Imports',
@@ -36,13 +40,18 @@ final class ImportController
 
     public function show(int $id): string
     {
-        $batch = (new ImportBatchRepository(Database::connection()))->find($id);
+        $pdo = Database::connection();
+
+        $batch = (new ImportBatchRepository($pdo))->find($id);
 
         if (!$batch) {
             throw new NotfoundException('Import batch '. $id .' not found');
         }
 
-        $content = view('imports/show', ['batch' => $batch]);
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $rejected = (new RejectedTransactionRepository($pdo))->findByImportBatch($id, $page);
+
+        $content = view('imports/show', ['batch' => $batch, 'rejected' => $rejected]);
 
         return view('layouts/app', [
             'title' => 'Import #' . $id,
