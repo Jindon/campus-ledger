@@ -23,6 +23,12 @@ $uri = $_SERVER['REQUEST_URI'] ?? '/';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $isApi = str_starts_with(parse_url($uri, PHP_URL_PATH) ?? '', '/api/');
 
+if ($method === 'POST' && !$isApi && !csrf_verify($_POST['_csrf'] ?? null)) {
+    http_response_code(419);
+    echo view('errors/error', ['statusCode' => 419, 'message' => 'Your session has expired. Please try again.']);
+    exit;
+}
+
 $router = new Router();
 
 # START Register Routes
