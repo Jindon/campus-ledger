@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Controllers\ImportController;
+use app\Controllers\Web\ImportController;
 use App\Core\Router;
 use App\Exceptions\HttpException;
 
@@ -32,5 +32,7 @@ try {
     // todo: send json response or show error page
 } catch (Throwable $e) {
     http_response_code(500);
+
+    throw $e;
     // todo: send json response or show error page
 }
