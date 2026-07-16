@@ -1,5 +1,6 @@
 .idea
 .env
+.env.test
 vendor/
 node_modules/
 storage/logs/*.log

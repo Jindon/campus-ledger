@@ -9,9 +9,7 @@ use App\Core\Migrator;
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/Support/import_controller_redirect_override.php';
 
-Env::load(__DIR__ . '/../.env');
-$_ENV['DB_DATABASE'] = 'campus_ledger_test';
-putenv('DB_DATABASE=campus_ledger_test');
+Env::load(__DIR__ . '/../.env.test');
 
 Database::createDatabaseIfMissing();
 (new Migrator(Database::connection()))->run();

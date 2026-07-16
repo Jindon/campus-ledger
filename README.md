@@ -1,158 +1,97 @@
 # CampusLedger Lite
 
-A vanilla PHP 8.1 transaction import and reporting application. No framework —
-a small router, layered architecture (Controller → Service → Repository →
-Database), and services shared between the Web UI, the REST API and the CLI.
+A vanilla PHP 8.1 transaction import and reporting app. No framework — a
+small router, layered architecture (Controller → Service → Repository →
+Database), shared between the Web UI, the REST API and the CLI.
 
 ## Setup
 
-Requirements: PHP 8.1+, MySQL 8, Composer. Node is only needed if you want to
-recompile Tailwind CSS locally — the compiled `web/assets/css/app.css` is
-already committed, so it is **not** required on the deployment server.
+Requirements: PHP 8.1+, MySQL 8, Composer.
 
 ```bash
 composer install
 cp .env.example .env      # edit DB_* credentials if needed
 php bin/console migrate   # creates the database (if missing) and tables
-```
-
-Point Apache's document root at `web/` (e.g.
-`/home/candidate1/sandbox/web`) — `web/.htaccess` rewrites all requests to
-`web/index.php`, the single front controller. For local development you can
-instead run:
-
-```bash
 php -S 127.0.0.1:8000 -t web
 ```
 
-To rebuild the CSS after changing a view's Tailwind classes:
+For Apache, point the document root at `web/` — `.htaccess` routes
+everything through `web/index.php`.
 
-```bash
-npm install
-npm run build:css
-```
+CSS is precompiled and committed (`web/assets/css/app.css`). Only rebuild it
+if you change Tailwind classes: `npm install && npm run build:css`.
 
 ## Architecture
 
 ```
-Controller  -> receives the request, validates input, calls a Service, returns HTML/JSON
-Service     -> business logic (CSV import pipeline, reports), coordinates Repositories
+Controller  -> validates input, calls a Service, returns HTML/JSON
+Service     -> business logic (CSV import pipeline, reports)
 Repository  -> PDO queries, hydrates Models
-Model       -> plain domain objects
 Validator   -> CSV row validation, upload validation
 ```
 
-- `app/Core` — router, PDO connection, config loader, `.env` loader, migration
-  runner, file logger. Deliberately small; no service container or ORM.
-- `app/Controllers/Web` — Web controllers (return rendered HTML) and
-  `Controllers/Api` (return arrays that `web/index.php` JSON-encodes).
-- `app/Services/ImportService` is the CSV import pipeline: it streams the
-  file through `CsvReader`, normalizes each row with `TransactionNormalizer`,
-  validates it with `TransactionValidator`, and persists it — all three
-  layers are unit-tested independently.
-- `web/index.php` is the only front controller for the Web UI and the API; it
-  builds the routes, dispatches, and centralizes exception handling (friendly
-  HTML error pages for the web, JSON for `/api/*`), logging unexpected errors
-  and non-404 `HttpException`s to `storage/logs/app.log`.
-- `bin/console` is a ~5-line command dispatcher (`migrate`, `import`) that
-  reuses the exact same `ImportService` and `Migrator` used by the web app.
+- `app/Core` — router, PDO connection, config/env loading, migrations,
+  logging. No service container or ORM by design.
+- `app/Controllers/Web` returns HTML; `app/Controllers/Api` returns arrays
+  that `web/index.php` JSON-encodes.
+- `app/Services/ImportService` streams the CSV via `CsvReader`, normalizes
+  and validates each row, and bulk-inserts in chunks of 1000 — memory stays
+  bounded regardless of file size.
+- `web/index.php` is the single front controller for both Web and API;
+  centralizes exception handling (HTML error pages vs. JSON) and logs to
+  `storage/logs/app.log`.
+- `bin/console migrate|import` reuses the same `ImportService`/`Migrator`
+  as the web app.
 
-## Assumptions
+## Key decisions
 
-- **Required CSV columns**: `transaction_id`, `occurred_at`, `amount`,
-  `currency`, `transaction_type`, `status` (case-insensitive header). A file
-  missing any of these is rejected outright as a file-level validation error
-  before any row is processed. `merchant`, `account`, `card_number` are
-  optional columns used for filtering.
-- **"Never load the whole file into memory"** is implemented as streaming
-  via `fgetcsv()` one row at a time, with valid/unique rows buffered in
-  chunks of 1000 for a single bulk duplicate-check query, then inserted row
-  by row. This keeps memory bounded regardless of file size while avoiding
-  one duplicate-check round-trip per row.
-- **Duplicates vs. rejected rows**: a row with a `transaction_id` that
-  already exists (either earlier in the same file or in a previous import)
-  is **not** double-counted as "rejected" — it increments `duplicate_count`
-  instead, keeping the three dashboard counters mutually exclusive. It is
-  still written to `rejected_transactions` (with error `"Duplicate
-  transaction_id"`) so the Import Details page can explain every row that
-  didn't become a transaction, per the spec's "make it easy to understand
-  why rows were rejected."
-- **`currency`** is required (blank is rejected) and uppercased on
-  normalization; no further ISO-4217/length format check is enforced beyond
-  the column's 3-character width.
-- **Import result display**: after a successful web upload, the browser is
-  redirected (POST/redirect/GET) straight to `/imports/{id}`, which already
-  shows the full summary and rejected-rows table — rather than duplicating
-  that UI inline on the Imports page behind a flash message.
-- **CSRF** protection applies to web form submissions (session-token based).
-  The JSON API is stateless and has no CSRF check, matching typical
-  token/API-key-protected API conventions — no authentication is implemented
-  for either surface (see Future Improvements).
-- Local dev credentials default to `root` / no password against
-  `127.0.0.1:3306`, matching a typical local MySQL install; override in
-  `.env` for the sandbox.
+- Required CSV columns: `transaction_id`, `occurred_at`, `amount`,
+  `currency`, `transaction_type`, `status`. Missing any of these rejects the
+  whole file upfront. `merchant`, `account`, `card_number` are optional.
+- A row whose `transaction_id` already exists (in this file or a prior
+  import) counts as a **duplicate**, not a rejection — but it's still logged
+  to `rejected_transactions` so the Import Details page explains it.
+- Web form submissions are CSRF-protected (session token); the JSON API is
+  stateless with no CSRF check. No authentication on either surface.
 
 ## Database Schema
 
-**`import_batches`** — one row per import run.
-`id, filename, checksum, imported_count, rejected_count, duplicate_count, started_at, finished_at, created_at`
-
-**`transactions`** — successfully imported rows.
-`id, transaction_id (unique), occurred_at, amount, currency, transaction_type, status, merchant, account, card_number, import_batch_id (FK), created_at`
-
-**`rejected_transactions`** — rows that failed validation or were duplicates, one row each, always tied to an import batch.
-`id, import_batch_id (FK), row_no, transaction_id, errors (JSON), raw_data (JSON), created_at`
+- **import_batches** — one row per import run (counts, timestamps).
+- **transactions** — successfully imported rows (`transaction_id` unique).
+- **rejected_transactions** — every row that failed validation or was a
+  duplicate, with JSON `errors`/`raw_data`, tied to an import batch.
 
 Migrations are plain `.sql` files in `database/migrations/`, applied in
-filename order and tracked in a `migrations` table — `php bin/console
-migrate` is idempotent.
+filename order, tracked in a `migrations` table. `php bin/console migrate`
+is idempotent.
 
-## API Documentation
+## API
 
-All responses are JSON.
+All responses are JSON. Errors: `{"error": "message"}` (plus `"errors"` for
+422s) with a matching HTTP status.
 
-| Method | Endpoint | Description |
-|--------|----------|--------------|
-| GET | `/api/transactions` | Paginated transactions. Query params: `page`, `q`, `date_from`, `date_to`, `merchant`, `status`, `account`, `card_number`, `amount_min`, `amount_max`. |
-| GET | `/api/imports` | Paginated import batches, newest first. Query param: `page`. |
-| GET | `/api/imports/{id}` | One import batch plus its rejected transactions. 404 if not found. |
-| GET | `/api/reports/daily` | Transaction count/total for a single day, grouped by currency. Query param: `date` (`YYYY-MM-DD`, defaults to today; invalid values fall back to today). |
-
-Example — `GET /api/transactions`:
-
-```json
-{
-  "data": [{"id": 1, "transaction_id": "TXN0001", "amount": "120.00", "currency": "USD", "...": "..."}],
-  "meta": { "page": 1, "per_page": 25, "total": 9, "last_page": 1 }
-}
-```
-
-Errors are `{"error": "message"}` (plus `"errors"` field-level detail for
-422s) with the matching HTTP status code (404, 422, 500).
+| Method | Endpoint | Description                                                                                                                          |
+|--------|----------|--------------------------------------------------------------------------------------------------------------------------------------|
+| GET | `/api/transactions` | Paginated. Filters: `page`, `q`, `date_from`, `date_to`, `merchant`, `status`, `account`, `card_number`, `amount_min`, `amount_max`. |
+| GET | `/api/imports` | Paginated import batches, newest first. Paginate with `?page=<page_no>`                                                              |
+| GET | `/api/imports/{id}` | One import batch + its rejected transactions. 404 if missing. To paginate rejected transactions -> `?page=<page_no>`                 |
+| GET | `/api/reports/daily` | Count/total for one day, grouped by currency. Query: `?date=2026-07-16` (defaults to today).                                         |
 
 ## Testing
 
 ```bash
-composer test   # or: vendor/bin/phpunit
+composer test
 ```
 
-Tests run against a separate `campus_ledger_lite_test` database (created and
-migrated automatically by `tests/bootstrap.php` the first time you run the
-suite), so they never touch your dev data. Each test truncates the relevant
-tables in `setUp()`.
+Config is read from `.env.test` (committed, separate from your `.env`), so
+tests run against their own `campus_ledger_test` database — auto-created and
+migrated by `tests/bootstrap.php` — and never touch dev data. Each test
+truncates its tables in `setUp()`.
 
-- `tests/Unit` — `TransactionValidator`, `TransactionNormalizer`,
-  `CsvReader`, `ReportService`.
-- `tests/Integration` — `ImportService`, `TransactionRepository`,
-  `ImportBatchRepository`, `RejectedTransactionRepository`, exercised
-  against the real database.
-- `tests/Feature` — Imports list/details pages, Reports page, and all API
-  endpoints, exercised through the actual controllers. (The web upload
-  endpoint itself, `ImportController::store()`, is not covered by a test.)
-
-A sample dirty file, `transactions_dirty.csv`, is included at the repo root
-(mixed valid rows, bad dates, bad amounts, missing fields, and duplicates)
-for manual testing: `php bin/console import transactions_dirty.csv`.
+- `tests/Unit` — validators, normalizer, CSV reader, report service.
+- `tests/Integration` — import pipeline and repositories against a real DB.
+- `tests/Feature` — Web pages, uploads, and all API endpoints through the
+  actual controllers.
 
 ## Future Improvements
 
