@@ -41,13 +41,15 @@ Validator   -> CSV row validation, upload validation
   centralizes exception handling (HTML error pages vs. JSON) and logs to
   `storage/logs/app.log`.
 - `bin/console migrate|import` reuses the same `ImportService`/`Migrator`
-  as the web app.
+  as the web app. `bin/console reset [--force]` truncates all imported data
+  — CLI-only, since neither surface has authentication.
 
 ## Key decisions
 
 - Required CSV columns: `transaction_id`, `occurred_at`, `amount`,
   `currency`, `transaction_type`, `status`. Missing any of these rejects the
-  whole file upfront. `merchant`, `account`, `card_number` are optional.
+  whole file upfront. The rest — `merchant_name`, `account`, `card_number`,
+  `terminal_id`, `merchant_id`, `external_reference` — are optional.
 - A row whose `transaction_id` already exists (in this file or a prior
   import) counts as a **duplicate**, not a rejection — but it's still logged
   to `rejected_transactions` so the Import Details page explains it.

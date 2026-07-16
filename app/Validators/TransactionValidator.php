@@ -16,6 +16,9 @@ final class TransactionValidator
         'merchant' => 150,
         'account' => 100,
         'card_number' => 25,
+        'terminal_id' => 50,
+        'merchant_id' => 100,
+        'external_reference' => 150,
     ];
 
     public function validate(array $row): array

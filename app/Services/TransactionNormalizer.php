@@ -30,6 +30,9 @@ final class TransactionNormalizer
             'merchant' => $optional('merchant_name'),
             'account' => $optional('account'),
             'card_number' => $optional('card_number'),
+            'terminal_id' => $optional('terminal_id'),
+            'merchant_id' => $optional('merchant_id'),
+            'external_reference' => $optional('external_reference'),
         ];
     }
 }
