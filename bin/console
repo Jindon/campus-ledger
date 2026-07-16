@@ -40,8 +40,27 @@ try {
             echo "Batch ID:   {$summary->importBatchId}\n";
             break;
 
+        case 'reset':
+            if (!in_array('--force', $argv, true)) {
+                fwrite(STDOUT, "This deletes all imported transactions and import history. Continue? [y/N] ");
+                if (strtolower(trim((string) fgets(STDIN))) !== 'y') {
+                    echo "Aborted.\n";
+                    break;
+                }
+            }
+
+            $pdo = Database::connection();
+            $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+            foreach (['rejected_transactions', 'transactions', 'import_batches'] as $table) {
+                $pdo->exec("TRUNCATE TABLE {$table}");
+            }
+            $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+
+            echo "Data reset.\n";
+            break;
+
         default:
-            fwrite(STDERR, "Usage: php bin/console <migrate|import>\n");
+            fwrite(STDERR, "Usage: php bin/console <migrate|import|reset>\n");
             exit(1);
     }
 } catch (\Throwable $e) {

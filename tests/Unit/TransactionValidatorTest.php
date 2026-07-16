@@ -88,4 +88,11 @@ final class TransactionValidatorTest extends TestCase
 
         self::assertSame([], $this->validator->validate($row));
     }
+
+    public function test_oversized_external_reference_is_rejected(): void
+    {
+        $row = $this->validRow(['external_reference' => str_repeat('1', 151)]);
+
+        self::assertContains('external_reference must not exceed 150 characters', $this->validator->validate($row));
+    }
 }

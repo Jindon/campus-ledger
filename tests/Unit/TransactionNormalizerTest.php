@@ -65,6 +65,22 @@ final class TransactionNormalizerTest extends TestCase
         $result = $this->normalizer->normalize(['merchant_name' => '']);
 
         self::assertNull($result['merchant']);
+        self::assertNull($result['terminal_id']);
+        self::assertNull($result['merchant_id']);
+        self::assertNull($result['external_reference']);
+    }
+
+    public function test_passes_through_terminal_merchant_id_and_external_reference(): void
+    {
+        $result = $this->normalizer->normalize([
+            'terminal_id' => ' T001 ',
+            'merchant_id' => ' M001 ',
+            'external_reference' => ' REF-123 ',
+        ]);
+
+        self::assertSame('T001', $result['terminal_id']);
+        self::assertSame('M001', $result['merchant_id']);
+        self::assertSame('REF-123', $result['external_reference']);
     }
 
     public function test_optional_field_with_literal_zero_is_preserved(): void

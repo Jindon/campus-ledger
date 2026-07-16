@@ -17,6 +17,9 @@ final class Transaction
         public ?string $merchant,
         public ?string $account,
         public ?string $cardNumber,
+        public ?string $terminalId,
+        public ?string $merchantId,
+        public ?string $externalReference,
         public int $importBatchId,
         public string $createdAt,
     ) {
@@ -35,6 +38,9 @@ final class Transaction
             merchant: $row['merchant'],
             account: $row['account'],
             cardNumber: $row['card_number'],
+            terminalId: $row['terminal_id'],
+            merchantId: $row['merchant_id'],
+            externalReference: $row['external_reference'],
             importBatchId: (int) $row['import_batch_id'],
             createdAt: $row['created_at'],
         );
@@ -53,6 +59,9 @@ final class Transaction
             'merchant' => $this->merchant,
             'account' => $this->account,
             'card_number' => $this->cardNumber,
+            'terminal_id' => $this->terminalId,
+            'merchant_id' => $this->merchantId,
+            'external_reference' => $this->externalReference,
             'import_batch_id' => $this->importBatchId,
             'created_at' => $this->createdAt,
         ];

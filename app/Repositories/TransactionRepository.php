@@ -17,11 +17,15 @@ final class TransactionRepository
 
     public function insert(array $data): int
     {
+        // Defaulted so existing callers that don't care about these optional
+        // columns (e.g. tests seeding a transaction) don't have to list them.
+        $data += ['terminal_id' => null, 'merchant_id' => null, 'external_reference' => null];
+
         $stmt = $this->pdo->prepare(
             'INSERT INTO transactions
-                (transaction_id, occurred_at, amount, currency, transaction_type, status, merchant, account, card_number, import_batch_id)
+                (transaction_id, occurred_at, amount, currency, transaction_type, status, merchant, account, card_number, terminal_id, merchant_id, external_reference, import_batch_id)
              VALUES
-                (:transaction_id, :occurred_at, :amount, :currency, :transaction_type, :status, :merchant, :account, :card_number, :import_batch_id)'
+                (:transaction_id, :occurred_at, :amount, :currency, :transaction_type, :status, :merchant, :account, :card_number, :terminal_id, :merchant_id, :external_reference, :import_batch_id)'
         );
         $stmt->execute($data);
 
