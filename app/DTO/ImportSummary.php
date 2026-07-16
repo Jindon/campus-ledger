@@ -14,15 +14,4 @@ final class ImportSummary
         public int $processingTimeMs,
     ) {
     }
-
-    public function toArray(): array
-    {
-        return [
-            'import_batch_id' => $this->importBatchId,
-            'imported_count' => $this->importedCount,
-            'rejected_count' => $this->rejectedCount,
-            'duplicate_count' => $this->duplicateCount,
-            'processing_time_ms' => $this->processingTimeMs,
-        ];
-    }
 }

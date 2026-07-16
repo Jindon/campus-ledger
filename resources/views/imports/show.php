@@ -64,7 +64,6 @@ use App\Models\ImportBatch;
     <?= view('partials/pagination', ['page' => $rejected->page, 'lastPage' => $rejected->lastPage(), 'baseUrl' => '/imports/' . $batch->id]) ?>
 </div>
 
-// hide and show raw data for rejected transaction row
 <script>
     document.querySelectorAll('.raw-data-toggle').forEach(function (button) {
         button.addEventListener('click', function () {

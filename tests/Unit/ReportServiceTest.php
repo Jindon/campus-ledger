@@ -37,24 +37,24 @@ final class ReportServiceTest extends DatabaseTestCase
         ], $overrides));
     }
 
-    public function test_total_processed_amount_sums_transactions_in_the_same_currency(): void
+    public function test_currency_totals_sums_transactions_in_the_same_currency(): void
     {
         $this->seedTransaction(['currency' => 'USD', 'amount' => '100.00']);
         $this->seedTransaction(['currency' => 'USD', 'amount' => '50.00']);
 
-        $totals = $this->reportService->totalProcessedAmount();
+        $totals = $this->reportService->currencyTotals();
 
         self::assertCount(1, $totals);
         self::assertSame('USD', $totals[0]['currency']);
         self::assertSame('150.00', $totals[0]['total_amount']);
     }
 
-    public function test_total_processed_amount_does_not_mix_currencies(): void
+    public function test_currency_totals_does_not_mix_currencies(): void
     {
         $this->seedTransaction(['currency' => 'USD', 'amount' => '100.00']);
         $this->seedTransaction(['currency' => 'EUR', 'amount' => '50.00']);
 
-        $totals = $this->reportService->totalProcessedAmount();
+        $totals = $this->reportService->currencyTotals();
 
         self::assertCount(2, $totals);
         $byCurrency = array_column($totals, 'total_amount', 'currency');

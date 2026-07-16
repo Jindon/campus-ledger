@@ -43,12 +43,4 @@ final class ReportService
     {
         return $this->transactions->currencyTotals();
     }
-
-    public function totalProcessedAmount(): array
-    {
-        return array_map(
-            static fn (array $row) => ['currency' => $row['currency'], 'total_amount' => $row['total_amount']],
-            $this->currencyTotals()
-        );
-    }
 }

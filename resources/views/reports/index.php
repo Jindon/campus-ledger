@@ -5,7 +5,6 @@
 /** @var array $dailyMerchantTotals */
 /** @var array $merchantTotals */
 /** @var array $currencyTotals */
-/** @var array $totalProcessedAmount */
 
 $currencyLabel = static fn (string $currency): string => $currency !== '' ? $currency : '—';
 ?>
@@ -51,13 +50,13 @@ $currencyLabel = static fn (string $currency): string => $currency !== '' ? $cur
     <div class="bg-white rounded-lg border border-slate-200 p-5 mb-6">
         <p class="text-sm text-slate-500 mb-2">Total Processed Amount</p>
         <div class="flex flex-wrap gap-x-8 gap-y-2">
-            <?php foreach ($totalProcessedAmount as $row): ?>
+            <?php foreach ($currencyTotals as $row): ?>
                 <p class="text-3xl font-semibold">
                     <?= e(number_format((float) $row['total_amount'], 2)) ?>
                     <span class="text-base font-medium text-slate-500"><?= e($currencyLabel($row['currency'])) ?></span>
                 </p>
             <?php endforeach; ?>
-            <?php if ($totalProcessedAmount === []): ?>
+            <?php if ($currencyTotals === []): ?>
                 <p class="text-3xl font-semibold text-slate-400">0.00</p>
             <?php endif; ?>
         </div>
