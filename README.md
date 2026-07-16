@@ -66,33 +66,27 @@ unspecified. Decisions made, and why:
   `amount`, `currency`, `transaction_type`, `status` are required; a file
   missing any of these is rejected outright before any row is processed.
   The rest - `merchant_name`, `account`, `card_number`, `terminal_id`,
-  `merchant_id`, `external_reference` - are optional per row. Real
-  settlement data legitimately has transactions with no card (ACH), no
-  terminal (card-not-present), or no merchant (fees/adjustments), and the
-  task states the file "intentionally contains imperfect data" - rejecting
-  every row missing a secondary identifier would defeat that intent.
+  `merchant_id`, `external_reference` - are optional per row.
 - **Duplicates vs. rejected rows.** A row whose `transaction_id` already
   exists (earlier in the same file, or in a prior import) increments
   `duplicate_count`, not `rejected_count` - they're mutually exclusive
   dashboard counters. It's still written to `rejected_transactions` (error:
   `"Duplicate transaction_id"`) so the Import Details page can explain
   every row that didn't become a transaction. This is what makes re-import
-  of the same file safe (a stated functional requirement): re-running an
-  import is a no-op for rows already present, not an error.
+  of the same file safe.
 - **`transaction_type` is free text, not a validated enum.** The validator
   only checks it's non-blank and under the length limit - there's no
   allow-list of `credit`/`debit`/`purchase`/etc. The UI's amount
   color-coding matches the literal (case-insensitive) strings `credit` and
   `debit`; any other value, typo, or abbreviation (e.g. `"CR"`) is
   displayed uncolored rather than rejected or flagged. Chosen to avoid
-  guessing at a closed vocabulary the task didn't specify - see Future
-  Improvements.
+  guessing at a closed vocabulary for now - see Future Improvements.
 - **`card_number` is stored and displayed in full, unmasked.** No
   tokenization, truncation (e.g. last 4 digits), or encryption at rest -
   treated as an opaque identifier for filtering/display purposes only, the
   same as `account`. This is a deliberate scope cut for the assessment, not
   a recommendation for how this would be built for real cardholder data -
-  see Future Improvements.
+  based on business requirements - see Future Improvements.
 - **Upload size is bounded by PHP's own `upload_max_filesize`/
   `post_max_size` ini settings, not application code.** `UPLOAD_MAX_BYTES`
   exists in `.env`/`config/app.php` but nothing currently reads it in
@@ -104,8 +98,6 @@ unspecified. Decisions made, and why:
   based). The JSON API is stateless with no CSRF check, matching typical
   token/API-key-protected API conventions. No authentication is implemented
   for either surface - see Future Improvements.
-- Local dev credentials default to `root` / no password against
-  `127.0.0.1:3306`, matching a typical local MySQL install.
 
 ## Database Schema
 
